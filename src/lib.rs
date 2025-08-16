@@ -4,6 +4,7 @@ extern crate log;
 
 mod event_queue;
 mod layer;
+mod locked_layer;
 
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -11,6 +12,7 @@ use std::collections::HashMap;
 use crate::layer::AnyLayer;
 
 pub use crate::event_queue::EventQueue;
+pub use crate::locked_layer::LockedReg;
 pub use layer::{Layer, LayerDispatch};
 
 
