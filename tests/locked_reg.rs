@@ -16,11 +16,23 @@ impl SimpleLayer
 }
 
 
+#[cfg(not(feature = "tokio"))]
 #[test]
 fn static_layer()
 {
     static REG: LazyLock<LockedReg<()>> = LazyLock::new(LockedReg::new);
 
     REG.insert(SimpleLayer);
-    assert_eq!(reg_read!(REG, SimpleLayer).echo(39), 39)
+    assert_eq!(locked_read!(REG, SimpleLayer).echo(39), 39)
+}
+
+
+#[cfg(feature = "tokio")]
+#[tokio::test]
+async fn static_layer()
+{
+    static REG: LazyLock<LockedReg<()>> = LazyLock::new(LockedReg::new);
+
+    REG.insert(SimpleLayer).await;
+    assert_eq!(locked_read!(REG, SimpleLayer).echo(39), 39)
 }

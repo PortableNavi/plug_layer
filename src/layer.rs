@@ -1,12 +1,27 @@
 use crate::EventQueue;
 use std::any::{Any, TypeId, type_name};
 use std::ops::Deref;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+
+#[cfg(not(feature = "tokio"))]
+use std::sync::RwLock;
+
+#[cfg(feature = "tokio")]
+use tokio::sync::RwLock;
 
 
+#[cfg(not(feature = "tokio"))]
 pub trait LayerDispatch<E>
 {
     fn dispatch(&mut self, _event: &E, _queue: &mut EventQueue<E>) {}
+}
+
+
+#[cfg(feature = "tokio")]
+#[async_trait::async_trait]
+pub trait LayerDispatch<E>
+{
+    async fn dispatch(&mut self, _event: &E, _queue: &mut EventQueue<E>) {}
 }
 
 
@@ -44,6 +59,7 @@ impl<T: Send + Sync> Clone for Layer<T>
 
 impl<E, T> TryFrom<&AnyLayer<E>> for Layer<T>
 where
+    E: Send + Sync,
     T: Send + Sync + 'static,
 {
     type Error = anyhow::Error;
@@ -64,6 +80,8 @@ where
 
 
 pub struct AnyLayer<E>
+where
+    E: Send + Sync,
 {
     id: TypeId,
     dispatch: Arc<RwLock<dyn LayerDispatch<E> + Send + Sync>>,
@@ -72,6 +90,8 @@ pub struct AnyLayer<E>
 
 
 impl<E> AnyLayer<E>
+where
+    E: Send + Sync,
 {
     pub fn new<T>(from: T) -> Self
     where
@@ -87,7 +107,8 @@ impl<E> AnyLayer<E>
 }
 
 
-impl<E> LayerDispatch<E> for AnyLayer<E>
+#[cfg(not(feature = "tokio"))]
+impl<E: Send + Sync> LayerDispatch<E> for AnyLayer<E>
 {
     fn dispatch(&mut self, event: &E, queue: &mut EventQueue<E>)
     {
@@ -96,8 +117,22 @@ impl<E> LayerDispatch<E> for AnyLayer<E>
 }
 
 
+#[cfg(feature = "tokio")]
+#[async_trait::async_trait]
+impl<E> LayerDispatch<E> for AnyLayer<E>
+where
+    E: Send + Sync,
+{
+    async fn dispatch(&mut self, event: &E, queue: &mut EventQueue<E>)
+    {
+        self.dispatch.write().await.dispatch(event, queue).await
+    }
+}
+
+
 impl<E, T> From<Layer<T>> for AnyLayer<E>
 where
+    E: Send + Sync,
     T: LayerDispatch<E> + Send + Sync + 'static,
 {
     fn from(value: Layer<T>) -> Self

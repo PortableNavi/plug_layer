@@ -1,6 +1,7 @@
-#![cfg(not(feature = "tokio"))]
+#![cfg(feature = "tokio")]
 
 
+use async_trait::async_trait;
 use plug_layer::*;
 
 
@@ -17,8 +18,8 @@ impl SimpleLayer
 }
 
 
-#[test]
-fn simple_layer()
+#[tokio::test]
+async fn simple_layer()
 {
     let mut reg = LayerReg::new();
     reg.insert(SimpleLayer);
@@ -44,9 +45,11 @@ enum EventResponse
 
 
 struct DispatchLayer;
+
+#[async_trait]
 impl LayerDispatch<LayerEvent> for DispatchLayer
 {
-    fn dispatch(&mut self, event: &LayerEvent, queue: &mut EventQueue<LayerEvent>)
+    async fn dispatch(&mut self, event: &LayerEvent, queue: &mut EventQueue<LayerEvent>)
     {
         match event
         {
@@ -66,14 +69,15 @@ impl LayerDispatch<LayerEvent> for DispatchLayer
 }
 
 
-#[test]
-fn simple_dispatch_layer()
+#[tokio::test]
+async fn simple_dispatch_layer()
 {
     let mut reg = LayerReg::new();
     reg.insert(DispatchLayer);
 
     let echo = reg
         .dispatch(LayerEvent::EchoIn(39))
+        .await
         .slice()
         .contains(&LayerEvent::Response(EventResponse::EchoOut(39)));
 
@@ -81,15 +85,17 @@ fn simple_dispatch_layer()
 }
 
 
-#[test]
-fn redispatch_dispatch_layer()
+#[tokio::test]
+async fn redispatch_dispatch_layer()
 {
     let mut reg = LayerReg::new();
     reg.insert(DispatchLayer);
 
     let echo = reg
         .dispatch(LayerEvent::EchoIn(39))
+        .await
         .dispatch(&mut reg)
+        .await
         .slice()
         .contains(&LayerEvent::Response(EventResponse::EchoReceived(39)));
 

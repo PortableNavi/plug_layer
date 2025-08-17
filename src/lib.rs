@@ -4,7 +4,12 @@ extern crate log;
 
 mod event_queue;
 mod layer;
-mod locked_layer;
+
+#[cfg(not(feature = "tokio"))]
+mod locked_reg;
+
+#[cfg(feature = "tokio")]
+mod locked_reg_async;
 
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -12,17 +17,21 @@ use std::collections::HashMap;
 use crate::layer::AnyLayer;
 
 pub use crate::event_queue::EventQueue;
-pub use crate::locked_layer::LockedReg;
 pub use layer::{Layer, LayerDispatch};
 
+#[cfg(not(feature = "tokio"))]
+pub use crate::locked_reg::LockedReg;
 
-pub struct LayerReg<E>
+#[cfg(feature = "tokio")]
+pub use crate::locked_reg_async::LockedReg;
+
+pub struct LayerReg<E: Send + Sync>
 {
     layers: HashMap<TypeId, AnyLayer<E>>,
 }
 
 
-impl<E> LayerReg<E>
+impl<E: Send + Sync> LayerReg<E>
 {
     pub fn new() -> Self
     {
@@ -79,6 +88,7 @@ impl<E> LayerReg<E>
             .map(|l| Layer::try_from(&l).unwrap())
     }
 
+    #[cfg(not(feature = "tokio"))]
     pub fn dispatch(&mut self, event: E) -> EventQueue<E>
     {
         let mut queue = EventQueue::default();
@@ -90,10 +100,23 @@ impl<E> LayerReg<E>
 
         queue
     }
+
+    #[cfg(feature = "tokio")]
+    pub async fn dispatch(&mut self, event: E) -> EventQueue<E>
+    {
+        let mut queue = EventQueue::default();
+
+        for layer in self.layers.values_mut()
+        {
+            layer.dispatch(&event, &mut queue).await;
+        }
+
+        queue
+    }
 }
 
 
-impl<E> Default for LayerReg<E>
+impl<E: Send + Sync> Default for LayerReg<E>
 {
     fn default() -> Self
     {
@@ -129,6 +152,7 @@ macro_rules! layer_inspect {
 }
 
 
+#[cfg(not(feature = "tokio"))]
 #[macro_export]
 macro_rules! layer_read {
     ($layer:expr) => {
@@ -137,6 +161,7 @@ macro_rules! layer_read {
 }
 
 
+#[cfg(not(feature = "tokio"))]
 #[macro_export]
 macro_rules! layer_write {
     ($layer:expr) => {
@@ -145,6 +170,7 @@ macro_rules! layer_write {
 }
 
 
+#[cfg(not(feature = "tokio"))]
 #[macro_export]
 macro_rules! reg_read {
     ($reg:expr, $layer:ident) => {
@@ -153,9 +179,82 @@ macro_rules! reg_read {
 }
 
 
+#[cfg(not(feature = "tokio"))]
 #[macro_export]
 macro_rules! reg_write {
     ($reg:expr, $layer:ident) => {
         $reg.get_unchecked::<$layer>().write().unwrap()
+    };
+}
+
+
+#[cfg(not(feature = "tokio"))]
+#[macro_export]
+macro_rules! locked_read {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().read().unwrap()
+    };
+}
+
+
+#[cfg(not(feature = "tokio"))]
+#[macro_export]
+macro_rules! locked_write {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().write().unwrap()
+    };
+}
+
+
+#[cfg(feature = "tokio")]
+#[macro_export]
+macro_rules! layer_read {
+    ($layer:expr) => {
+        $layer.read().await
+    };
+}
+
+
+#[cfg(feature = "tokio")]
+#[macro_export]
+macro_rules! layer_write {
+    ($layer:expr) => {
+        $layer.write().await
+    };
+}
+
+
+#[cfg(feature = "tokio")]
+#[macro_export]
+macro_rules! reg_read {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().read().await
+    };
+}
+
+
+#[cfg(feature = "tokio")]
+#[macro_export]
+macro_rules! reg_write {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().write().await
+    };
+}
+
+
+#[cfg(feature = "tokio")]
+#[macro_export]
+macro_rules! locked_read {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().await.read().await
+    };
+}
+
+
+#[cfg(feature = "tokio")]
+#[macro_export]
+macro_rules! locked_write {
+    ($reg:expr, $layer:ident) => {
+        $reg.get_unchecked::<$layer>().await.write().await
     };
 }

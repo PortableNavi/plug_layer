@@ -3,10 +3,10 @@ use std::sync::RwLock;
 use crate::{EventQueue, Layer, LayerDispatch, LayerReg};
 
 #[derive(Default)]
-pub struct LockedReg<T>(RwLock<LayerReg<T>>);
+pub struct LockedReg<T: Send + Sync>(RwLock<LayerReg<T>>);
 
 
-impl<E> LockedReg<E>
+impl<E: Send + Sync> LockedReg<E>
 {
     pub fn new() -> Self
     {

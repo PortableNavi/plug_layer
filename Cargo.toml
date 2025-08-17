@@ -3,6 +3,13 @@ name = "plug_layer"
 version = "0.1.0"
 edition = "2024"
 
+
 [dependencies]
 anyhow = "1.0.99"
+async-trait = { version = "0.1.89", optional = true }
 log = "0.4.27"
+tokio = { version = "1.47.1", features = ["sync", "macros", "rt"], optional = true }
+
+
+[features]
+tokio = ["dep:tokio", "dep:async-trait"]
