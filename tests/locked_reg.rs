@@ -20,10 +20,10 @@ impl SimpleLayer
 #[test]
 fn static_layer()
 {
-    static REG: LazyLock<LockedReg<()>> = LazyLock::new(LockedReg::new);
+    static_reg!(REG<()>);
 
     REG.insert(SimpleLayer);
-    assert_eq!(locked_read!(REG, SimpleLayer).echo(39), 39)
+    assert_eq!(static_read!(REG, SimpleLayer).echo(39), 39)
 }
 
 
@@ -31,8 +31,8 @@ fn static_layer()
 #[tokio::test]
 async fn static_layer()
 {
-    static REG: LazyLock<LockedReg<()>> = LazyLock::new(LockedReg::new);
+    static_reg!(REG<()>);
 
     REG.insert(SimpleLayer).await;
-    assert_eq!(locked_read!(REG, SimpleLayer).echo(39), 39)
+    assert_eq!(static_read!(REG, SimpleLayer).echo(39), 39)
 }

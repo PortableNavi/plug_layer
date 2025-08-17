@@ -190,7 +190,7 @@ macro_rules! reg_write {
 
 #[cfg(not(feature = "tokio"))]
 #[macro_export]
-macro_rules! locked_read {
+macro_rules! static_read {
     ($reg:expr, $layer:ident) => {
         $reg.get_unchecked::<$layer>().read().unwrap()
     };
@@ -199,7 +199,7 @@ macro_rules! locked_read {
 
 #[cfg(not(feature = "tokio"))]
 #[macro_export]
-macro_rules! locked_write {
+macro_rules! static_write {
     ($reg:expr, $layer:ident) => {
         $reg.get_unchecked::<$layer>().write().unwrap()
     };
@@ -244,7 +244,7 @@ macro_rules! reg_write {
 
 #[cfg(feature = "tokio")]
 #[macro_export]
-macro_rules! locked_read {
+macro_rules! static_read {
     ($reg:expr, $layer:ident) => {
         $reg.get_unchecked::<$layer>().await.read().await
     };
@@ -253,8 +253,17 @@ macro_rules! locked_read {
 
 #[cfg(feature = "tokio")]
 #[macro_export]
-macro_rules! locked_write {
+macro_rules! static_write {
     ($reg:expr, $layer:ident) => {
         $reg.get_unchecked::<$layer>().await.write().await
+    };
+}
+
+
+#[macro_export]
+macro_rules! static_reg {
+    ($name:ident<$kind:ty>) => {
+        static $name: ::std::sync::LazyLock<LockedReg<$kind>> =
+            ::std::sync::LazyLock::new(LockedReg::new);
     };
 }
