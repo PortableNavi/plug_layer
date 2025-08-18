@@ -266,4 +266,9 @@ macro_rules! static_reg {
         static $name: ::std::sync::LazyLock<LockedReg<$kind>> =
             ::std::sync::LazyLock::new(LockedReg::new);
     };
+
+    ($v:vis $name:ident<$kind:ty>) => {
+        $v static $name: ::std::sync::LazyLock<LockedReg<$kind>> =
+            ::std::sync::LazyLock::new(LockedReg::new);
+    };
 }
